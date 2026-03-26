@@ -1,7 +1,11 @@
 import streamlit as st
 import base64, time, re, os
-import google.generativeai as genai
+from google import genai # YENİ GOOGLE GENAI SDK KULLANILDI
+from dotenv import load_dotenv # YENİ EKLENDİ
 import streamlit.components.v1 as components
+
+# 1. Configuration & Setup
+load_dotenv()
 
 # PANELİ ZORLA AÇIK GETİREN AYAR
 st.set_page_config(
@@ -24,19 +28,21 @@ MASCOT = load_asset("mascot.png")
 VIDEO  = load_asset("hero_video.mp4")
 
 # ── API KEY ───────────────────────────────────────────────────
-API_KEY = ""
-try:
-    API_KEY = st.secrets["GOOGLE_API_KEY"]
-except:
-    API_KEY = os.getenv("GOOGLE_API_KEY", "")
+# Use os.getenv as primary for local development; fallback to streamlit secrets
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    try:
+        GOOGLE_API_KEY = st.secrets.get("GOOGLE_API_KEY")
+    except Exception:
+        GOOGLE_API_KEY = ""
 
 # ── SESSION STATE ─────────────────────────────────────────────
 if "messages"  not in st.session_state: st.session_state.messages  = []
 if "profile"   not in st.session_state: st.session_state.profile   = {"name":None,"age":None,"gender":None,"conditions":None,"step":"name"}
-if "api_key"   not in st.session_state: st.session_state.api_key   = API_KEY
-if "connected" not in st.session_state: st.session_state.connected = bool(API_KEY)
+if "api_key"   not in st.session_state: st.session_state.api_key   = GOOGLE_API_KEY
+if "connected" not in st.session_state: st.session_state.connected = bool(GOOGLE_API_KEY)
 
-# ── CSS (HEADER GİZLEMESİ İPTAL EDİLDİ) ───────────────────────
+# ── CSS (TASARIM HİÇ BOZULMADI) ───────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -174,7 +180,7 @@ section[data-testid="stSidebar"] .stButton button{background:#E63950!important;c
 </style>
 """, unsafe_allow_html=True)
 
-# ── SIDEBAR (ST.RERUN EKLENDİ) ────────────────────────────────
+# ── SIDEBAR ───────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(f"""
     <div style='display:flex;align-items:center;gap:10px;margin-bottom:20px'>
@@ -227,7 +233,7 @@ with st.sidebar:
         st.session_state.profile  = {"name":None,"age":None,"gender":None,"conditions":None,"step":"name"}
         st.rerun()
 
-# ── PROMPTS & AI (GEMINI 2.0 FLASH'A GÜNCELLENDİ) ──────────────
+# ── PROMPTS & YENİ GOOGLE.GENAI ENTEGRASYONU ──────────────────
 def build_prompt():
     p = st.session_state.profile
     return f"""You are Florence, an NHS UK AI health assistant for MediPulse AI. Warm, professional, compassionate.
@@ -249,24 +255,33 @@ STYLE: Warm NHS tone. Max 200 words. Bullet points. End with NHS service or help
 
 def call_ai(user_msg):
     try:
-        genai.configure(api_key=st.session_state.api_key)
-        model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
-            system_instruction=build_prompt()
-        )
-        history = []
+        # Yeni SDK Client tanımlaması
+        client = genai.Client(api_key=st.session_state.api_key)
+        
+        # Sohbet geçmişini (history) yeni SDK'ya uygun hale getiriyoruz
+        contents = []
         for m in st.session_state.messages[:-1]:
-            history.append({
-                "role": "user" if m["role"] == "user" else "model",
-                "parts": [m["content"]]
-            })
-        chat = model.start_chat(history=history)
-        return chat.send_message(user_msg).text
+            role = "user" if m["role"] == "user" else "model"
+            contents.append({"role": role, "parts": [m["content"]]})
+            
+        # Mevcut atılan mesajı listeye ekliyoruz
+        contents.append({"role": "user", "parts": [user_msg]})
+
+        # Yeni SDK'nın generate_content fonksiyonunu geçmiş ile çağırıyoruz
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            config={'system_instruction': build_prompt()},
+            contents=contents
+        )
+        return response.text
+
     except Exception as e:
-        err = str(e)
-        if "429" in err or "quota" in err.lower():
+        err = str(e).lower()
+        if not st.session_state.api_key:
+            return "⚠️ Missing Google API Key. Please add it in the sidebar."
+        if "429" in err or "quota" in err:
             return "⚠️ API quota reached. Please wait a moment and try again.\n\nEmergency: **call 999** | Urgent: **call 111** | Mental health: **Samaritans 116 123**"
-        return f"⚠️ Connection error. Please check your API key in the sidebar.\n\nEmergency: **999** | Urgent: **111** | Mental health: **116 123**"
+        return f"⚠️ Error generating response: {str(e)}"
 
 def fallback(msg):
     m = msg.lower()
