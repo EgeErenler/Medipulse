@@ -1,7 +1,7 @@
 import streamlit as st
 import base64, time, re, os
-from google import genai # YENİ GOOGLE GENAI SDK KULLANILDI
-from dotenv import load_dotenv # YENİ EKLENDİ
+from google import genai
+from dotenv import load_dotenv
 import streamlit.components.v1 as components
 
 # 1. Configuration & Setup
@@ -28,7 +28,6 @@ MASCOT = load_asset("mascot.png")
 VIDEO  = load_asset("hero_video.mp4")
 
 # ── API KEY ───────────────────────────────────────────────────
-# Use os.getenv as primary for local development; fallback to streamlit secrets
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
     try:
@@ -233,7 +232,7 @@ with st.sidebar:
         st.session_state.profile  = {"name":None,"age":None,"gender":None,"conditions":None,"step":"name"}
         st.rerun()
 
-# ── PROMPTS & YENİ GOOGLE.GENAI ENTEGRASYONU ──────────────────
+# ── PROMPTS VE BOT MANTIĞI (SENİN ÇALIŞAN ÖRNEĞİNDEKİ GİBİ SADELEŞTİRİLDİ) ──
 def build_prompt():
     p = st.session_state.profile
     return f"""You are Florence, an NHS UK AI health assistant for MediPulse AI. Warm, professional, compassionate.
@@ -255,41 +254,14 @@ STYLE: Warm NHS tone. Max 200 words. Bullet points. End with NHS service or help
 
 def call_ai(user_msg):
     try:
-        # Yeni SDK Client tanımlaması
+        # Tıpkı senin verdiğin örnekteki gibi, geçmişi atlayıp sadece kullanıcının
+        # anlık mesajını (user_msg) iletiyoruz. Şema hatası almayacaksın.
         client = genai.Client(api_key=st.session_state.api_key)
         
-        # Sohbet geçmişini YENİ KATMANLI FORMATA (Pydantic Schema) uygun hale getiriyoruz
-        contents = []
-        for m in st.session_state.messages[:-1]:
-            role = "user" if m["role"] == "user" else "model"
-            # ESKİSİ: "parts": [m["content"]]
-            # YENİSİ: "parts": [{"text": m["content"]}]  <-- Hatanın çözüldüğü yer
-            contents.append({"role": role, "parts": [{"text": m["content"]}]})
-            
-        # Mevcut atılan mesajı listeye ekliyoruz
-        contents.append({"role": "user", "parts": [{"text": user_msg}]})
-
-        # Yeni SDK'nın generate_content fonksiyonunu geçmiş ile çağırıyoruz
         response = client.models.generate_content(
             model="gemini-2.0-flash",
             config={'system_instruction': build_prompt()},
-            contents=contents
-        )
-        return response.text
-
-    except Exception as e:
-        err = str(e).lower()
-        if not st.session_state.api_key:
-            return "⚠️ Missing Google API Key. Please add it in the sidebar."
-        if "429" in err or "quota" in err:
-            return "⚠️ API quota reached. Please wait a moment and try again.\n\nEmergency: **call 999** | Urgent: **call 111** | Mental health: **Samaritans 116 123**"
-        return f"🚨 API Hatası: {str(e)}"
-
-        # Yeni SDK'nın generate_content fonksiyonunu geçmiş ile çağırıyoruz
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            config={'system_instruction': build_prompt()},
-            contents=contents
+            contents=user_msg
         )
         return response.text
 
