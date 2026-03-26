@@ -258,14 +258,32 @@ def call_ai(user_msg):
         # Yeni SDK Client tanımlaması
         client = genai.Client(api_key=st.session_state.api_key)
         
-        # Sohbet geçmişini (history) yeni SDK'ya uygun hale getiriyoruz
+        # Sohbet geçmişini YENİ KATMANLI FORMATA (Pydantic Schema) uygun hale getiriyoruz
         contents = []
         for m in st.session_state.messages[:-1]:
             role = "user" if m["role"] == "user" else "model"
-            contents.append({"role": role, "parts": [m["content"]]})
+            # ESKİSİ: "parts": [m["content"]]
+            # YENİSİ: "parts": [{"text": m["content"]}]  <-- Hatanın çözüldüğü yer
+            contents.append({"role": role, "parts": [{"text": m["content"]}]})
             
         # Mevcut atılan mesajı listeye ekliyoruz
-        contents.append({"role": "user", "parts": [user_msg]})
+        contents.append({"role": "user", "parts": [{"text": user_msg}]})
+
+        # Yeni SDK'nın generate_content fonksiyonunu geçmiş ile çağırıyoruz
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            config={'system_instruction': build_prompt()},
+            contents=contents
+        )
+        return response.text
+
+    except Exception as e:
+        err = str(e).lower()
+        if not st.session_state.api_key:
+            return "⚠️ Missing Google API Key. Please add it in the sidebar."
+        if "429" in err or "quota" in err:
+            return "⚠️ API quota reached. Please wait a moment and try again.\n\nEmergency: **call 999** | Urgent: **call 111** | Mental health: **Samaritans 116 123**"
+        return f"🚨 API Hatası: {str(e)}"
 
         # Yeni SDK'nın generate_content fonksiyonunu geçmiş ile çağırıyoruz
         response = client.models.generate_content(
