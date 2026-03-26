@@ -243,21 +243,17 @@ STYLE: Warm NHS tone. Max 200 words. Bullet points. End with NHS service or help
 def call_ai(user_msg):
     try:
         genai.configure(api_key=st.session_state.api_key)
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            system_instruction=build_prompt()
-        )
-        history = []
-        for m in st.session_state.messages[:-1]:
-            history.append({
-                "role": "user" if m["role"] == "user" else "model",
-                "parts": [m["content"]]
-            })
-        chat = model.start_chat(history=history)
-        return chat.send_message(user_msg).text
+        
+        # Anahtarının erişimi olan modelleri buluyoruz
+        available_models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+                
+        return f"🚨 SENİN ANAHTARININ GÖREBİLDİĞİ MODELLER ŞUNLAR:\n\n{', '.join(available_models)}"
+        
     except Exception as e:
-        # GERÇEK HATAYI SAKLAMAYIP DİREKT EKRANA BASIYORUZ
-        return f"🚨 SİSTEM HATASI (Lütfen bunu bana kopyala): {str(e)}"
+        return f"🚨 KÖTÜ HABER, LİSTEYİ BİLE ÇEKEMEDİ: {str(e)}"
         
 def fallback(msg):
     m = msg.lower()
