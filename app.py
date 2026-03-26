@@ -36,7 +36,7 @@ if "connected" not in st.session_state: st.session_state.connected = bool(API_KE
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
-#MainMenu,footer,header,[data-testid="stToolbar"],[data-testid="stDecoration"]{display:none!important}
+#MainMenu,footer,[data-testid="stToolbar"],[data-testid="stDecoration"]{display:none!important}
 .stApp{background:#0C1525;color:#F0F6FF}
 .main .block-container{padding:0!important;max-width:100%!important}
 section[data-testid="stSidebar"]{background:#162032!important;border-right:1px solid #253650!important}
