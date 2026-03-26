@@ -244,16 +244,27 @@ def call_ai(user_msg):
     try:
         genai.configure(api_key=st.session_state.api_key)
         
-        # Anahtarının erişimi olan modelleri buluyoruz
-        available_models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                available_models.append(m.name)
-                
-        return f"🚨 SENİN ANAHTARININ GÖREBİLDİĞİ MODELLER ŞUNLAR:\n\n{', '.join(available_models)}"
+        # İŞTE BÜTÜN SORUNU ÇÖZEN O TEK SATIR: MODEL İSMİNİ GÜNCELLEDİK!
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash", 
+            system_instruction=build_prompt()
+        )
+        
+        history = []
+        for m in st.session_state.messages[:-1]:
+            history.append({
+                "role": "user" if m["role"] == "user" else "model",
+                "parts": [m["content"]]
+            })
+            
+        chat = model.start_chat(history=history)
+        return chat.send_message(user_msg).text
         
     except Exception as e:
-        return f"🚨 KÖTÜ HABER, LİSTEYİ BİLE ÇEKEMEDİ: {str(e)}"
+        err = str(e).lower()
+        if "429" in err or "quota" in err:
+            return "⚠️ API quota reached. Please wait a moment and try again.\n\nEmergency: **call 999** | Urgent: **call 111** | Mental health: **Samaritans 116 123**"
+        return f"⚠️ Connection error. Please check your API key in the sidebar.\n\nEmergency: **999** | Urgent: **111** | Mental health: **116 123**"
         
 def fallback(msg):
     m = msg.lower()
