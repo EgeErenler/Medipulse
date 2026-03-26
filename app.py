@@ -242,7 +242,6 @@ STYLE: Warm NHS tone. Max 200 words. Bullet points. End with NHS service or help
 
 def call_ai(user_msg):
     try:
-        # GEMINI BAĞLANTISI BURADA DÜZELTİLDİ
         genai.configure(api_key=st.session_state.api_key)
         model = genai.GenerativeModel(
             model_name="gemini-1.5-flash",
@@ -257,11 +256,9 @@ def call_ai(user_msg):
         chat = model.start_chat(history=history)
         return chat.send_message(user_msg).text
     except Exception as e:
-        err = str(e)
-        if "429" in err or "quota" in err.lower():
-            return "⚠️ API quota reached. Please wait a moment and try again.\n\nEmergency: **call 999** | Urgent: **call 111** | Mental health: **Samaritans 116 123**"
-        return f"⚠️ Connection error. Please check your API key in the sidebar.\n\nEmergency: **999** | Urgent: **111** | Mental health: **116 123**"
-
+        # GERÇEK HATAYI SAKLAMAYIP DİREKT EKRANA BASIYORUZ
+        return f"🚨 SİSTEM HATASI (Lütfen bunu bana kopyala): {str(e)}"
+        
 def fallback(msg):
     m = msg.lower()
     if any(w in m for w in ["chest pain","heart attack","stroke","can't breathe"]):
