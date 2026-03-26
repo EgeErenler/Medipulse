@@ -19,15 +19,15 @@ def load_asset(path):
 MASCOT = load_asset("mascot.png")
 VIDEO  = load_asset("hero_video.mp4")
 
-# ── API KEY ───────────────────────────────────────────────────
+# ── API KEY & SESSION STATE (ZORUNLU GÜNCELLEME) ──────────────
+API_KEY = "AIzaSyAK6G_yaHcGbzGIgDCCRZfG2H84_bhVeWE" # Anahtarını buraya yazdık
 
-API_KEY = "AIzaSyAK6G_yaHcGbzGIgDCCRZfG2H84_bhVeWE"
-
-# ── SESSION STATE ─────────────────────────────────────────────
 if "messages"  not in st.session_state: st.session_state.messages  = []
 if "profile"   not in st.session_state: st.session_state.profile   = {"name":None,"age":None,"gender":None,"conditions":None,"step":"name"}
-if "api_key"   not in st.session_state: st.session_state.api_key   = API_KEY
-if "connected" not in st.session_state: st.session_state.connected = bool(API_KEY)
+
+# AŞAĞIDAKİ İKİ SATIR ESKİ HAFIZAYI ZORLA SİLER VE GÜNCELLER
+st.session_state.api_key = API_KEY
+st.session_state.connected = True
 
 # ── CSS ───────────────────────────────────────────────────────
 st.markdown("""
