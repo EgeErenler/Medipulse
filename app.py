@@ -185,9 +185,10 @@ with st.sidebar:
 
     if st.button("🔑 Connect"):
         if len(key_input) > 20:
-            st.session_state.api_key  = key_input
+            st.session_state.api_key = key_input
             st.session_state.connected = True
             st.success("✅ Connected!")
+            st.rerun() # EKSİK OLAN SATIR BURASIYDI: Anında güncellenmesini sağlar
         else:
             st.error("❌ Invalid key")
 
