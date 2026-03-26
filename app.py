@@ -21,10 +21,22 @@ VIDEO  = load_asset("hero_video.mp4")
 # ── API KEY ───────────────────────────────────────────────────
 API_KEY = ""
 try:
-    API_KEY = st.secrets["GOOGLE_API_KEY"]
-except:
+    if "GOOGLE_API_KEY" in st.secrets:
+        API_KEY = st.secrets["GOOGLE_API_KEY"]
+    else:
+        API_KEY = os.getenv("GOOGLE_API_KEY", "")
+except Exception:
     API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
+# Initializing Gemini (Crucial for connection)
+if API_KEY:
+    try:
+        genai.configure(api_key=API_KEY)
+        # We define the model here to use it later in the chat
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        st.session_state.model = model # Save to session state
+    except Exception as e:
+        st.error(f"Configuration Error: {e}")
 # ── SESSION STATE ─────────────────────────────────────────────
 if "messages"  not in st.session_state: st.session_state.messages  = []
 if "profile"   not in st.session_state: st.session_state.profile   = {"name":None,"age":None,"gender":None,"conditions":None,"step":"name"}
