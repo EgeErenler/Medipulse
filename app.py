@@ -1,40 +1,47 @@
 import streamlit as st
 import base64, time, re, os
 import google.generativeai as genai
-import streamlit.components.v1 as components  # Landbot eklentisi için eklendi
+import streamlit.components.v1 as components
 
+# PANELİ ZORLA AÇIK GETİREN AYAR
 st.set_page_config(
     page_title="MediPulse AI",
     page_icon="🏥",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded" 
 )
 
 # ── ASSETS ───────────────────────────────────────────────────
 @st.cache_data
 def load_asset(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except:
+        return ""
 
 MASCOT = load_asset("mascot.png")
 VIDEO  = load_asset("hero_video.mp4")
 
-# ── API KEY & SESSION STATE (ZORUNLU GÜNCELLEME) ──────────────
-API_KEY = "AIzaSyAK6G_yaHcGbzGIgDCCRZfG2H84_bhVeWE" # Anahtarını buraya yazdık
+# ── API KEY ───────────────────────────────────────────────────
+API_KEY = ""
+try:
+    API_KEY = st.secrets["GOOGLE_API_KEY"]
+except:
+    API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
+# ── SESSION STATE ─────────────────────────────────────────────
 if "messages"  not in st.session_state: st.session_state.messages  = []
 if "profile"   not in st.session_state: st.session_state.profile   = {"name":None,"age":None,"gender":None,"conditions":None,"step":"name"}
+if "api_key"   not in st.session_state: st.session_state.api_key   = API_KEY
+if "connected" not in st.session_state: st.session_state.connected = bool(API_KEY)
 
-# AŞAĞIDAKİ İKİ SATIR ESKİ HAFIZAYI ZORLA SİLER VE GÜNCELLER
-st.session_state.api_key = API_KEY
-st.session_state.connected = True
-
-# ── CSS ───────────────────────────────────────────────────────
+# ── CSS (HEADER GİZLEMESİ İPTAL EDİLDİ) ───────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
 #MainMenu,footer,[data-testid="stToolbar"],[data-testid="stDecoration"]{display:none!important}
-header {background: transparent !important;}
+header {background: transparent !important; visibility: visible !important;}
 .stApp{background:#0C1525;color:#F0F6FF}
 .main .block-container{padding:0!important;max-width:100%!important}
 section[data-testid="stSidebar"]{background:#162032!important;border-right:1px solid #253650!important}
@@ -169,7 +176,7 @@ section[data-testid="stSidebar"] .stButton button{background:#E63950!important;c
 </style>
 """, unsafe_allow_html=True)
 
-# ── SIDEBAR ───────────────────────────────────────────────────
+# ── SIDEBAR (ST.RERUN EKLENDİ) ────────────────────────────────
 with st.sidebar:
     st.markdown(f"""
     <div style='display:flex;align-items:center;gap:10px;margin-bottom:20px'>
@@ -186,15 +193,15 @@ with st.sidebar:
 
     if st.button("🔑 Connect"):
         if len(key_input) > 20:
-            st.session_state.api_key = key_input
+            st.session_state.api_key  = key_input
             st.session_state.connected = True
             st.success("✅ Connected!")
-            st.rerun() # EKSİK OLAN SATIR BURASIYDI: Anında güncellenmesini sağlar
+            st.rerun()
         else:
             st.error("❌ Invalid key")
 
     if st.session_state.connected:
-        st.markdown("<div style='background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);border-radius:6px;padding:8px 12px;font-size:12px;color:#6EE7B7'>🟢 Gemini AI Active</div>", unsafe_allow_html=True)
+        st.markdown("<div style='background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);border-radius:6px;padding:8px 12px;font-size:12px;color:#6EE7B7'>🟢 Gemini 2.0 Flash Active</div>", unsafe_allow_html=True)
     else:
         st.markdown("<div style='background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:6px;padding:8px 12px;font-size:12px;color:#FDE68A'>🟡 Demo mode</div>", unsafe_allow_html=True)
 
@@ -222,7 +229,7 @@ with st.sidebar:
         st.session_state.profile  = {"name":None,"age":None,"gender":None,"conditions":None,"step":"name"}
         st.rerun()
 
-# ── PROMPTS & AI ──────────────────────────────────────────────
+# ── PROMPTS & AI (GEMINI 2.0 FLASH'A GÜNCELLENDİ) ──────────────
 def build_prompt():
     p = st.session_state.profile
     return f"""You are Florence, an NHS UK AI health assistant for MediPulse AI. Warm, professional, compassionate.
@@ -245,29 +252,24 @@ STYLE: Warm NHS tone. Max 200 words. Bullet points. End with NHS service or help
 def call_ai(user_msg):
     try:
         genai.configure(api_key=st.session_state.api_key)
-        
-        # İŞTE BÜTÜN SORUNU ÇÖZEN O TEK SATIR: MODEL İSMİNİ GÜNCELLEDİK!
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash", 
+            model_name="gemini-2.0-flash",
             system_instruction=build_prompt()
         )
-        
         history = []
         for m in st.session_state.messages[:-1]:
             history.append({
                 "role": "user" if m["role"] == "user" else "model",
                 "parts": [m["content"]]
             })
-            
         chat = model.start_chat(history=history)
         return chat.send_message(user_msg).text
-        
     except Exception as e:
-        err = str(e).lower()
-        if "429" in err or "quota" in err:
+        err = str(e)
+        if "429" in err or "quota" in err.lower():
             return "⚠️ API quota reached. Please wait a moment and try again.\n\nEmergency: **call 999** | Urgent: **call 111** | Mental health: **Samaritans 116 123**"
         return f"⚠️ Connection error. Please check your API key in the sidebar.\n\nEmergency: **999** | Urgent: **111** | Mental health: **116 123**"
-        
+
 def fallback(msg):
     m = msg.lower()
     if any(w in m for w in ["chest pain","heart attack","stroke","can't breathe"]):
@@ -436,7 +438,7 @@ st.markdown('<div id="chatbot" class="sec-wrap-dk">', unsafe_allow_html=True)
 col_info, col_chat = st.columns([1, 1.2], gap="large")
 
 with col_info:
-    status_txt = "Gemini 1.5 Flash" if st.session_state.connected else "Demo Mode"
+    status_txt = "Gemini 2.0 Flash" if st.session_state.connected else "Demo Mode"
     status_col = "#6EE7B7" if st.session_state.connected else "#FCD34D"
     st.markdown(f"""
     <div class="sec-tag">Gemini AI Powered</div>
