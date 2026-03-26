@@ -20,11 +20,8 @@ MASCOT = load_asset("mascot.png")
 VIDEO  = load_asset("hero_video.mp4")
 
 # ── API KEY ───────────────────────────────────────────────────
-API_KEY = ""
-try:
-    API_KEY = st.secrets["GOOGLE_API_KEY"]
-except:
-    API_KEY = os.getenv("GOOGLE_API_KEY", "")
+
+API_KEY = "AIzaSyAK6G_yaHcGbzGIgDCCRZfG2H84_bhVeWE"
 
 # ── SESSION STATE ─────────────────────────────────────────────
 if "messages"  not in st.session_state: st.session_state.messages  = []
